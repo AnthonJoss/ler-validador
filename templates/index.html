@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validador LER · Teoría de la Computación</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <p class="curso">Teoría de la Computación · 2026-02 · Etapa 1</p>
+  <h1>Sistema de Validación Léxico-Sintáctica de Eventos Logísticos</h1>
+  <p class="sub">Lenguaje de Eventos de Reparto (LER) · Última milla en Lima Metropolitana</p>
+  <p id="hola" class="hola">Cargando backend…</p>
+</header>
+<main>
+<section class="card">
+  <h2>1. Entrada de datos</h2>
+  <textarea id="entrada" rows="5" spellcheck="false" placeholder="ENTREGA{ID=P1023;DIST=18.5;...}"></textarea>
+  <div class="row">
+    <button id="btn-analizar" class="primary">Analizar</button>
+    <button id="btn-ejemplo" class="ghost">Cargar ejemplo</button>
+    <label class="ghost filebtn">Subir archivo .txt<input id="archivo" type="file" accept=".txt,text/plain" hidden></label>
+    <button id="btn-limpiar" class="ghost">Limpiar</button>
+  </div>
+  <div class="row small">
+    <span>Casos de prueba:</span>
+    <button class="chip" data-caso="valido">Válido</button>
+    <button class="chip" data-caso="lexico">Error léxico</button>
+    <button class="chip" data-caso="sintactico">Error sintáctico</button>
+  </div>
+</section>
+
+<section class="card">
+  <h2>2. Tabla léxica <span id="resumen" class="badge"></span></h2>
+  <div id="alertas"></div>
+  <div class="scroll">
+  <table id="tabla">
+    <thead><tr><th>#</th><th>Lexema</th><th>Token</th><th>Categoría</th><th>Línea:Col</th></tr></thead>
+    <tbody><tr><td colspan="5" class="vacio">Esperando entrada…</td></tr></tbody>
+  </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>3. Catálogo de tokens de LER</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Token</th><th>Categoría</th><th>Expresión regular</th></tr></thead>
+    <tbody>
+    {% for t in catalogo %}
+      <tr><td><code>{{ t.token }}</code></td><td>{{ t.categoria }}</td><td><code>{{ t.regex }}</code></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+</main>
+<footer>Proyecto académico · Etapa 1 (Avance 2): análisis léxico con Flask + <code>re</code></footer>
+<script>
+const EJEMPLOS = {{ ejemplos | tojson }};
+</script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+:root{--bg:#0f1220;--card:#181c30;--line:#2a3050;--fg:#e8eaf6;--mut:#9aa3c7;--acc:#7c5cff;--ok:#2ecc9a;--err:#ff5d73}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
+header{padding:32px 16px 8px;max-width:960px;margin:auto}
+.curso{color:var(--acc);font-weight:600;margin:0;text-transform:uppercase;font-size:12px;letter-spacing:.08em}
+h1{margin:4px 0;font-size:clamp(22px,4vw,32px)}
+.sub{color:var(--mut);margin:0}
+.hola{display:inline-block;margin:12px 0 0;padding:2px 10px;border:1px solid var(--line);border-radius:99px;color:var(--ok);font-size:13px}
+main{max-width:960px;margin:auto;padding:8px 16px 32px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+h2{margin:0 0 12px;font-size:18px}
+textarea{width:100%;background:#0c0f1d;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:12px;font:14px ui-monospace,monospace;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.small{color:var(--mut);font-size:13px}
+button,.filebtn{font:inherit;cursor:pointer;border-radius:8px;padding:8px 14px;border:1px solid var(--line);color:var(--fg);background:transparent}
+.primary{background:var(--acc);border-color:var(--acc);font-weight:600}
+.ghost:hover,.chip:hover{background:var(--line)}
+.chip{padding:2px 10px;border-radius:99px;font-size:13px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{color:var(--mut);font-weight:600}
+code{font-family:ui-monospace,monospace;color:#c9bfff}
+.vacio{color:var(--mut);text-align:center}
+.badge{font-size:12px;color:var(--ok);font-weight:500;margin-left:8px}
+.alerta{border:1px solid var(--err);background:#ff5d7318;border-radius:8px;padding:8px 12px;margin-bottom:8px;color:#ffc2cb}
+.ok{border-color:var(--ok);background:#2ecc9a18;color:#b8f5e0}
+footer{text-align:center;color:var(--mut);padding:16px 16px 32px;font-size:13px}
