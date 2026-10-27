@@ -36,9 +36,11 @@ MASTER = re.compile(
 CATEGORY = {n: c for n, c, _ in ALL_TOKENS}
 
 CATALOGO = [
-    {"token": n, "categoria": c, "regex": p.replace("|", "|")}
-    for n, c, p in TOKEN_SPEC
-] + [{"token": n, "categoria": c, "regex": p} for n, c, p in _OTHER_TOKENS]
+    {"token": n, "categoria": c, "regex": re.sub(r"\(\?![^)]*\)$", "", p)}
+    for n, c, p in TOKEN_SPEC + _OTHER_TOKENS
+]
+# ER pura de cada token (sin el lookahead de delimitación); alimenta los autómatas de la etapa 2.
+ER_POR_TOKEN = {t["token"]: t["regex"] for t in CATALOGO}
 
 
 def tokenize(texto):
@@ -63,7 +65,7 @@ def tokenize(texto):
             errores.append({"lexema": lexema, "linea": linea, "columna": col, "mensaje": motivo})
             continue
         tokens.append({
-            "lexema": lexema, "token": tipo, "categoria": CATEGORY[tipo],
+            "lexema": lexema, "token": tipo, "categoria": CATEGORY[tipo], "er": ER_POR_TOKEN[tipo],
             "linea": linea, "columna": col,
         })
     return tokens, errores

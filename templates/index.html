@@ -8,7 +8,7 @@
 </head>
 <body>
 <header>
-  <p class="curso">Teoría de la Computación · 2026-02 · Etapa 1</p>
+  <p class="curso">Teoría de la Computación · 2026-02 · Etapas 1 y 2</p>
   <h1>Sistema de Validación Léxico-Sintáctica de Eventos Logísticos</h1>
   <p class="sub">Lenguaje de Eventos de Reparto (LER) · Última milla en Lima Metropolitana</p>
   <p id="hola" class="hola">Cargando backend…</p>
@@ -36,8 +36,8 @@
   <div id="alertas"></div>
   <div class="scroll">
   <table id="tabla">
-    <thead><tr><th>#</th><th>Lexema</th><th>Token</th><th>Categoría</th><th>Línea:Col</th></tr></thead>
-    <tbody><tr><td colspan="5" class="vacio">Esperando entrada…</td></tr></tbody>
+    <thead><tr><th>#</th><th>Lexema</th><th>Token</th><th>Categoría</th><th>Expresión regular</th><th>Línea:Col</th></tr></thead>
+    <tbody><tr><td colspan="6" class="vacio">Esperando entrada…</td></tr></tbody>
   </table>
   </div>
 </section>
@@ -55,8 +55,22 @@
   </table>
   </div>
 </section>
+
+<section class="card" id="etapa2">
+  <h2>4. Autómatas por token <span class="badge">Etapa 2</span></h2>
+  <p class="small">Cada lexema pertenece al lenguaje de su expresión regular. A partir de ella se construye el AFND (Thompson), se convierte a AFD (subconjuntos) y se generan quíntupla, tabla, transiciones y gráfico. Haz clic en una fila de la tabla léxica o elige un token.</p>
+  <div class="row">
+    <label for="sel-token">Token:</label>
+    <select id="sel-token">
+      {% for t in catalogo %}<option value="{{ t.token }}">{{ t.token }}</option>{% endfor %}
+    </select>
+    <input id="lexema-traza" class="mini" placeholder="lexema para recorrer (opcional)" spellcheck="false">
+    <button id="btn-auto" class="primary">Generar</button>
+  </div>
+  <div id="auto-salida"></div>
+</section>
 </main>
-<footer>Proyecto académico · Etapa 1 (Avance 2): análisis léxico con Flask + <code>re</code></footer>
+<footer>Proyecto académico · Etapa 1: análisis léxico con Flask + <code>re</code> · Etapa 2: ER → AFND → AFD</footer>
 <script>
 const EJEMPLOS = {{ ejemplos | tojson }};
 </script>

@@ -26,3 +26,12 @@ code{font-family:ui-monospace,monospace;color:#c9bfff}
 .alerta{border:1px solid var(--err);background:#ff5d7318;border-radius:8px;padding:8px 12px;margin-bottom:8px;color:#ffc2cb}
 .ok{border-color:var(--ok);background:#2ecc9a18;color:#b8f5e0}
 footer{text-align:center;color:var(--mut);padding:16px 16px 32px;font-size:13px}
+select,.mini{font:inherit;background:#0c0f1d;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.mini{min-width:240px;font-family:ui-monospace,monospace}
+h3{margin:20px 0 4px;font-size:16px;color:var(--acc)}
+h4{margin:14px 0 6px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+.quint{background:#0c0f1d;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0;overflow-x:auto;font:13px/1.6 ui-monospace,monospace;color:var(--fg)}
+.grafo{overflow-x:auto;background:#0c0f1d;border:1px solid var(--line);border-radius:8px;padding:8px}
+.grafo svg{display:block;max-width:none}
+tr.clic{cursor:pointer}tr.clic:hover{background:#ffffff0a}
+details summary{cursor:pointer;color:var(--mut);margin-bottom:6px}
