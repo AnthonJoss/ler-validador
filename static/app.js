@@ -1,101 +1,67 @@
 const $ = (id) => document.getElementById(id);
-const esc = (s) => s.replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const post = (url, texto) => fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({texto})});
 
-fetch("/api/hola").then(r => r.json()).then(d => { $("hola").textContent = "✔ " + d.mensaje; })
+fetch("/api/hola").then((r) => r.json()).then((d) => { $("hola").textContent = "✔ " + d.mensaje; })
   .catch(() => { $("hola").textContent = "Backend no disponible"; });
 
-async function analizar() {
+// ------------------------------------------------------------ zoom de gráficos SVG
+function herramientas() {
+  return `<div class="herramientas"><button data-escala="ajustar">Ajustar</button><button data-escala="ampliar">Ampliar</button>
+    <button data-escala="reducir">Reducir</button><button data-escala="original">Tamaño real</button></div>`;
+}
+function escalar(marco, modo) {
+  const svg = marco.querySelector("svg");
+  if (!svg) return;
+  const natural = Number(svg.dataset.ancho || (svg.dataset.ancho = svg.getAttribute("width")));
+  const actual = Number(svg.dataset.factor || 1);
+  let f = actual;
+  if (modo === "ajustar") f = Math.min(1, Math.max(250, marco.clientWidth - 2) / natural);
+  if (modo === "original") f = 1;
+  if (modo === "ampliar") f = Math.min(2.4, actual * 1.35);
+  if (modo === "reducir") f = Math.max(0.15, actual / 1.35);
+  svg.dataset.factor = f;
+  svg.style.width = natural * f + "px";
+  svg.style.height = "auto";
+}
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest(".herramientas button");
+  if (b) escalar(b.parentElement.nextElementSibling, b.dataset.escala);
+});
+const grafico = (svg, clase = "") => `${herramientas()}<div class="marco ${clase}">${svg}</div>`;
+
+// ------------------------------------------------------------ análisis completo
+async function analizarTodo() {
   const texto = $("entrada").value;
-  const res = await fetch("/api/analizar", {
-    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({texto}),
-  });
-  const d = await res.json();
-  if (!res.ok) { $("alertas").innerHTML = `<div class="alerta">${esc(d.error)}</div>`; return; }
-  $("resumen").textContent = `${d.total} tokens · ${d.errores.length} errores`;
-  $("alertas").innerHTML = d.errores.length
-    ? d.errores.map(e => `<div class="alerta">Error léxico en ${e.linea}:${e.columna} — <code>${esc(e.lexema)}</code>: ${esc(e.mensaje)}</div>`).join("")
-    : '<div class="alerta ok">Sin errores léxicos: todos los lexemas fueron reconocidos.</div>';
+  if (!texto.trim()) {
+    $("lex-estado").innerHTML = '<div class="aviso error">La entrada está vacía: escribe una cadena LER o carga un archivo.</div>';
+    return;
+  }
+  const [rl, rs] = await Promise.all([post("/api/analizar", texto), post("/api/validar", texto)]);
+  const lex = await rl.json(), sin = await rs.json();
+  if (!rl.ok) { $("lex-estado").innerHTML = `<div class="aviso error">${esc(lex.error)}</div>`; return; }
+  pintarLexico(lex);
+  pintarSintactico(sin);
+  pintarAutomatas(lex.tokens);
+}
+
+// ------------------------------------------------------------ 2. léxico
+function pintarLexico(d) {
+  $("lex-estado").innerHTML = d.errores.length
+    ? `<div class="aviso error"><b>Análisis léxico con ${d.errores.length} error(es).</b>` +
+      d.errores.map((e) => `<br>Línea ${e.linea}, col. ${e.columna} — <code>${esc(e.lexema)}</code>: ${esc(e.mensaje)}`).join("") + "</div>"
+    : `<div class="aviso ok">Análisis léxico correcto: ${d.total} lexemas reconocidos.</div>`;
   $("tabla").querySelector("tbody").innerHTML = d.tokens.map((t, i) =>
-    `<tr class="clic" data-token="${t.token}" data-lexema="${esc(t.lexema)}"><td>${i + 1}</td><td><code>${esc(t.lexema)}</code></td><td>${t.token}</td><td>${t.categoria}</td><td><code>${esc(t.er)}</code></td><td>${t.linea}:${t.columna}</td></tr>`
-  ).join("") || '<tr><td colspan="6" class="vacio">Sin tokens reconocidos</td></tr>';
-  $("tabla").querySelectorAll("tr.clic").forEach(tr => tr.onclick = () => {
-    $("sel-token").value = tr.dataset.token; $("lexema-traza").value = tr.dataset.lexema;
-    generarAutomata(); $("etapa2").scrollIntoView({behavior: "smooth"});
+    `<tr class="clic" data-token="${t.token}" title="Ver su autómata"><td>${i + 1}</td><td><span class="pill">${t.token}</span></td>
+     <td><code>${esc(t.lexema)}</code></td><td class="adm">${esc(t.admitidos)}</td><td><code>${esc(t.er)}</code></td><td>${t.linea}:${t.columna}</td></tr>`
+  ).join("") || '<tr><td colspan="6" class="adm">No se reconoció ningún token.</td></tr>';
+  $("tabla").querySelectorAll("tr.clic").forEach((tr) => tr.onclick = () => {
+    const card = document.querySelector(`.auto-card[data-token="${tr.dataset.token}"]`);
+    if (card) { card.open = true; card.scrollIntoView({behavior: "smooth"}); }
   });
 }
 
-const analizarTodo = () => { analizar(); validarSintaxis(); };
-$("btn-analizar").onclick = analizarTodo;
-$("btn-ejemplo").onclick = () => { $("entrada").value = EJEMPLOS.valido; analizarTodo(); };
-$("btn-limpiar").onclick = () => {
-  $("entrada").value = ""; $("alertas").innerHTML = ""; $("resumen").textContent = "";
-  $("tabla").querySelector("tbody").innerHTML = '<tr><td colspan="6" class="vacio">Esperando entrada…</td></tr>';
-  $("sint-salida").innerHTML = '<p class="small vacio">Pulsa «Analizar» o «Validar con la gramática».</p>';
-};
-document.querySelectorAll(".chip").forEach(b => b.onclick = () => { $("entrada").value = EJEMPLOS[b.dataset.caso]; analizarTodo(); });
-$("archivo").onchange = async (e) => {
-  const f = e.target.files[0]; if (!f) return;
-  $("entrada").value = await f.text(); e.target.value = ""; analizarTodo();
-};
-
-// ---------------------------------------------------------------- Etapa 2
-const sub = (n) => String(n).replace(/\d+/g, (d) => d.split("").map((c) => "₀₁₂₃₄₅₆₇₈₉"[c]).join(""));
-const lista = (xs) => "{" + xs.join(", ") + "}";
-
-function quintupla(a) {
-  const q = a.estados.map(sub).join(", ");
-  return `<pre class="quint">M = (Q, Σ, δ, q₀, F)
-Q  = {${esc(q)}}
-Σ  = {${esc(a.alfabeto)}}
-δ  : ver tabla y lista de transiciones
-q₀ = ${esc(sub(a.inicial))}
-F  = ${lista(a.finales.map(sub))}</pre>`;
-}
-
-function tablaTransiciones(a, extra) {
-  const t = a.tabla;
-  const cab = `<th>Estado</th>${extra ? "<th>Estados del AFND</th>" : ""}` + t.columnas.map((c) => `<th>${esc(c)}</th>`).join("");
-  const filas = t.filas.map((f) => {
-    const marca = (f.inicial ? "→" : "") + (f.final ? "*" : "");
-    return `<tr><td><b>${marca} ${esc(f.estado)}</b></td>${extra ? `<td><code>${esc(f.afnd)}</code></td>` : ""}` +
-      f.celdas.map((c) => `<td>${esc(c)}</td>`).join("") + "</tr>";
-  }).join("");
-  return `<div class="scroll"><table><thead><tr>${cab}</tr></thead><tbody>${filas}</tbody></table></div>
-    <p class="small">→ estado inicial · * estado de aceptación · «—» sin transición (estado de error implícito).</p>`;
-}
-
-function bloqueAutomata(a, titulo, esAfd) {
-  return `<h3>${titulo}</h3>
-    <h4>Quíntupla</h4>${quintupla(a)}
-    <h4>Gráfico</h4><div class="grafo">${a.svg}</div>
-    <h4>Tabla de transiciones</h4>${tablaTransiciones(a, esAfd)}
-    <h4>Transiciones (${a.transiciones.length})</h4>
-    <details><summary>Ver lista δ</summary><pre class="quint">${esc(a.transiciones.join("\n"))}</pre></details>`;
-}
-
-function trazaHtml(t, lexema) {
-  const pasos = t.pasos.map((p) => `δ(${sub(p.de)}, ${esc(p.simbolo)}) = ${sub(p.a)}`).join("\n");
-  return `<h3>Recorrido de «${esc(lexema)}» en el AFD</h3>
-    <div class="alerta ${t.acepta ? "ok" : ""}">${t.acepta ? "Aceptado" : "Rechazado"} por el autómata.</div>
-    <pre class="quint">${pasos}</pre>`;
-}
-
-async function generarAutomata() {
-  const token = $("sel-token").value, lexema = $("lexema-traza").value.trim();
-  const res = await fetch(`/api/automata/${token}` + (lexema ? `?lexema=${encodeURIComponent(lexema)}` : ""));
-  const d = await res.json();
-  if (!res.ok) { $("auto-salida").innerHTML = `<div class="alerta">${esc(d.error)}</div>`; return; }
-  $("auto-salida").innerHTML =
-    `<h3>Expresión regular de <code>${d.token}</code></h3><pre class="quint">${esc(d.er)}</pre>` +
-    bloqueAutomata(d.afnd, `AFND (Thompson) · ${d.afnd.estados.length} estados`, false) +
-    bloqueAutomata(d.afd, `AFD (subconjuntos) · ${d.afd.estados.length} estados`, true) +
-    (d.traza ? trazaHtml(d.traza, lexema) : "");
-}
-$("btn-auto").onclick = generarAutomata;
-$("sel-token").onchange = generarAutomata;
-generarAutomata();
-
-// ---------------------------------------------------------------- Etapa 3
+// ------------------------------------------------------------ 3. sintáctico
 function arbolTexto(n, pref = "", ultimo = true, raiz = true) {
   const rama = raiz ? "" : pref + (ultimo ? "└─ " : "├─ ");
   const et = n.lexema !== undefined ? `${n.nodo}  «${n.lexema}»` : `<${n.nodo}>`;
@@ -105,37 +71,126 @@ function arbolTexto(n, pref = "", ultimo = true, raiz = true) {
   return out;
 }
 
-async function validarSintaxis() {
-  const texto = $("entrada").value;
-  const res = await fetch("/api/validar", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({texto})});
-  const d = await res.json();
-  if (!res.ok) { $("sint-salida").innerHTML = `<div class="alerta">${esc(d.error)}</div>`; return; }
+const NOMBRES = {id: "ID PEDIDO", distancia: "Distancia (km)", carga: "Carga (kg)", trafico: "Tráfico", clima: "Clima", hora: "Hora prevista", prioridad: "Prioridad"};
+
+function pintarSintactico(d) {
   let h = "";
-  d.errores_lexicos.forEach(e => { h += `<div class="alerta">Error léxico en ${e.linea}:${e.columna} — <code>${esc(e.lexema)}</code>: ${esc(e.mensaje)}</div>`; });
   if (d.error_sintactico) {
     const e = d.error_sintactico;
-    h += `<div class="alerta">Error sintáctico en ${e.linea}:${e.columna} — ${esc(e.mensaje)}.</div>`;
+    h += `<div class="aviso error"><b>Error sintáctico</b> en línea ${e.linea}, columna ${e.columna}: se esperaba <code>${esc(e.esperado)}</code> y se encontró <code>${esc(e.encontrado)}</code>.</div>`;
+  } else if (d.errores_lexicos.length) {
+    h += '<div class="aviso error">La estructura cumple la gramática, pero la cadena se rechaza por los errores léxicos (ver paso 2).</div>';
+  } else {
+    h += '<div class="aviso ok">Sintaxis correcta: la cadena pertenece al lenguaje L(G) de LER.</div>';
   }
-  if (d.valido) h += '<div class="alerta ok">Cadena válida: pertenece al lenguaje L(G) definido por la gramática de LER.</div>';
-  else if (!d.error_sintactico) h += '<div class="alerta">La estructura cumple la gramática, pero la cadena se rechaza por los errores léxicos.</div>';
+
+  if (d.variables) {
+    const v = d.variables;
+    const rep = `EVENTO DE REPARTO: ${v.id}\n\nCARGA Y RECORRIDO\nDistancia: ${v.distancia} km\nCarga: ${v.carga} kg\n\nCONDICIONES\nTráfico: ${v.trafico}\nClima: ${v.clima}\n\nPROGRAMACIÓN\nHora prevista: ${v.hora}\nPrioridad: ${v.prioridad}`;
+    const filas = Object.entries(v).map(([k, x]) => `<tr><td>${esc(NOMBRES[k] || k)}</td><td><code>${esc(String(x))}</code></td><td>${typeof x === "number" ? "numérica" : "categórica"}</td></tr>`).join("");
+    h += `<div class="bloque-gris"><h3>Representación obtenida</h3><pre class="codigo">${esc(rep)}</pre>
+      <p class="subt">Variables extraídas para el modelo predictivo</p>
+      <div class="scroll"><table class="tabla-lex"><thead><tr><th>Variable</th><th>Valor</th><th>Tipo</th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
+  }
+
   if (d.derivacion) {
     const filas = d.derivacion.map((p, i) => {
-      const reg = p.produccion === null ? "inicio (S)" : p.produccion === "lexemas" ? "tokens → lexemas" : `P${p.produccion}`;
-      return `<tr><td>${i === 0 ? "" : "⇒"}</td><td><code>${esc(p.forma)}</code></td><td>${reg}</td></tr>`;
+      const reg = p.produccion === null ? "S" : p.produccion === "lexemas" ? "lexemas" : `P${p.produccion}`;
+      return `<tr><td>${i ? "⇒" : ""}</td><td>${esc(p.forma)}</td><td class="regla">${reg}</td></tr>`;
     }).join("");
-    h += `<h3>Derivación por la izquierda</h3><div class="scroll"><table><thead><tr><th></th><th>Forma sentencial</th><th>Regla</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+    h += `<div class="bloque-gris"><h3>Derivación por la izquierda</h3>
+      <div class="scroll"><table class="deriv"><tbody>${filas}</tbody></table></div>
+      <p class="nota">En cada paso se reemplaza el no terminal más a la izquierda por el cuerpo de su producción; el último paso sustituye cada token por su lexema.</p></div>`;
   }
+
   const arbol = d.arbol || d.arbol_parcial;
   if (d.svg) {
-    h += `<h3>${d.arbol ? "Árbol sintáctico" : "Árbol sintáctico parcial (hasta el error)"}</h3>
-      <div class="grafo arbol">${d.svg}</div>
-      <p class="small">Óvalos violetas: no terminales · rectángulos verdes: terminales (tokens) · debajo, el lexema reconocido.</p>
-      <details><summary>Ver árbol en texto</summary><pre class="quint">${esc(arbolTexto(arbol))}</pre></details>`;
-  }
-  if (d.variables) {
-    const filas = Object.entries(d.variables).map(([k, v]) => `<tr><td>${esc(k)}</td><td><code>${esc(String(v))}</code></td><td>${typeof v === "number" ? "numérica" : "categórica"}</td></tr>`).join("");
-    h += `<h3>Variables extraídas (entrada del modelo predictivo)</h3><div class="scroll"><table><thead><tr><th>Variable</th><th>Valor</th><th>Tipo</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+    h += `<div class="bloque-gris"><h3>${d.arbol ? "Árbol sintáctico" : "Árbol sintáctico parcial (hasta el error)"}</h3>
+      ${grafico(d.svg, "claro")}
+      <p class="leyenda">Óvalos violetas: no terminales · rectángulos verdes: terminales (tokens) · debajo: el lexema · rojo: punto del error.</p>
+      <details class="detalle"><summary>Ver árbol en texto</summary><pre class="codigo">${esc(arbolTexto(arbol))}</pre></details></div>`;
   }
   $("sint-salida").innerHTML = h;
+  $("sint-salida").querySelectorAll(".marco").forEach((m) => escalar(m, "ajustar"));
 }
-$("btn-validar").onclick = validarSintaxis;
+
+// ------------------------------------------------------------ 4. autómatas
+function pintarAutomatas(tokens) {
+  const vistos = new Map();
+  (tokens && tokens.length ? tokens : CATALOGO.map((c) => ({token: c.token, er: c.regex, lexema: ""})))
+    .forEach((t) => { if (!vistos.has(t.token)) vistos.set(t.token, t); });
+  $("lista-automatas").innerHTML = [...vistos.values()].map((t) => {
+    const er = t.er ?? CATALOGO.find((c) => c.token === t.token).regex;
+    return `<details class="auto-card" data-token="${t.token}" data-lexema="${esc(t.lexema)}">
+      <summary><b>${t.token}</b><span class="mono">${esc(er)}</span><span class="ver">Ver desarrollo</span></summary>
+      <div class="auto-cuerpo"><p class="cargando">Generando autómatas…</p></div></details>`;
+  }).join("");
+  document.querySelectorAll(".auto-card").forEach((c) => c.addEventListener("toggle", () => { if (c.open) cargarAutomata(c); }));
+}
+
+const conj = (xs) => "{" + xs.join(", ") + "}";
+
+function tablaHtml(a) {
+  const t = a.tabla;
+  const cab = "<th>Estado</th>" + t.columnas.map((c) => `<th>${esc(c)}</th>`).join("");
+  const filas = t.filas.map((f) => `<tr><td class="est"><b>${f.inicial ? "→ " : ""}${f.final ? "* " : ""}${esc(f.estado)}</b></td>` +
+    f.celdas.map((c) => `<td>${esc(c)}</td>`).join("") + "</tr>").join("");
+  return `<div class="scroll"><table class="tabla-lex"><thead><tr>${cab}</tr></thead><tbody>${filas}</tbody></table></div>
+    <p class="leyenda">→ inicial · * final · — sin transición</p>`;
+}
+const paso = (n, titulo, cuerpo) => `<div class="paso-formal"><span class="num">${n}</span><div><h4>${titulo}</h4>${cuerpo}</div></div>`;
+
+async function cargarAutomata(card) {
+  if (card.dataset.cargado) return;
+  card.dataset.cargado = "1";
+  const token = card.dataset.token, lexema = card.dataset.lexema;
+  const cuerpo = card.querySelector(".auto-cuerpo");
+  const r = await fetch(`/api/automata/${token}` + (lexema ? `?lexema=${encodeURIComponent(lexema)}` : ""));
+  const d = await r.json();
+  if (!r.ok) { cuerpo.innerHTML = `<div class="aviso error">${esc(d.error)}</div>`; return; }
+  const n = d.afnd, a = d.afd;
+  let h = paso(4, "Expresión regular", `
+      <p class="dato"><b>Lexema:</b> <code>${esc(lexema || "—")}</code></p>
+      <p class="dato"><b>Token:</b> ${esc(token)}</p>
+      <p class="dato"><b>ER:</b> <code>${esc(d.er)}</code></p>`);
+  h += paso(5, "AFND (construcción de Thompson)", `
+      <p class="dato"><b>Inicial:</b> ${esc(n.inicial)} · <b>Final:</b> ${esc(conj(n.finales))} · ${n.estados.length} estados</p>
+      ${grafico(n.svg)}
+      <p class="subt">Transiciones</p><div class="trans">${n.transiciones.map((t) => `<span>${esc(t)}</span>`).join("")}</div>`);
+  h += paso(6, "Conversión AFND → AFD (construcción de subconjuntos)", `
+      <p class="nota">Cada estado del AFD es la ε-clausura de un conjunto de estados del AFND.</p>
+      <div class="comp">${a.tabla.filas.map((f) => `<span>${esc(f.estado)} = ${esc(f.afnd)}</span>`).join("")}</div>`);
+  h += paso(7, "AFD y tabla de transición", `${grafico(a.svg)}<p class="subt">Tabla de transición</p>${tablaHtml(a)}`);
+  h += paso(8, "Transiciones del AFD", `<div class="trans">${a.transiciones.map((t) => `<span>${esc(t)}</span>`).join("")}</div>`);
+  h += paso(9, "Quíntupla M = (Q, Σ, δ, q₀, F)", `<dl class="quint">
+      <dt>Q</dt><dd>${esc(conj(a.estados))}</dd>
+      <dt>Σ</dt><dd>${esc(a.alfabeto)}</dd>
+      <dt>δ</dt><dd><pre>${esc(a.transiciones.join("\n"))}</pre></dd>
+      <dt>q₀</dt><dd>${esc(a.inicial)}</dd>
+      <dt>F</dt><dd>${esc(conj(a.finales))}</dd></dl>`);
+  if (d.traza) {
+    const pasos = d.traza.pasos.map((p) => `δ(${p.de}, ${p.simbolo}) = ${p.a}`).join("\n");
+    h += paso("✓", `Recorrido de «${esc(lexema)}» en el AFD`, `
+      <div class="aviso ${d.traza.acepta ? "ok" : "error"}">${d.traza.acepta ? "Aceptado: termina en un estado final." : "Rechazado por el autómata."}</div>
+      <pre class="codigo">${esc(pasos)}</pre>`);
+  }
+  cuerpo.innerHTML = h;
+  cuerpo.querySelectorAll(".marco").forEach((m) => escalar(m, "ajustar"));
+}
+
+// ------------------------------------------------------------ eventos
+$("btn-analizar").onclick = analizarTodo;
+$("btn-limpiar").onclick = () => {
+  $("entrada").value = "";
+  $("lex-estado").innerHTML = '<div class="aviso info">Ingresa una cadena LER para comenzar.</div>';
+  $("tabla").querySelector("tbody").innerHTML = "";
+  $("sint-salida").innerHTML = '<div class="aviso info">El resultado aparecerá al analizar una cadena.</div>';
+  pintarAutomatas(null);
+};
+document.querySelectorAll("[data-caso]").forEach((b) => b.onclick = () => { $("entrada").value = EJEMPLOS[b.dataset.caso]; analizarTodo(); });
+$("archivo").onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  $("archivo-nombre").textContent = f.name;
+  $("entrada").value = await f.text(); e.target.value = ""; analizarTodo();
+};
+pintarAutomatas(null);

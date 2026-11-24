@@ -35,10 +35,20 @@ MASTER = re.compile(
 )
 CATEGORY = {n: c for n, c, _ in ALL_TOKENS}
 
+ADMITIDOS = {
+    "IDENT": "P seguido de cuatro dígitos (ej.: P1023, P0048)",
+    "NUM": "Entero o decimal (ej.: 7, 42, 18.5, 12.5)",
+    "TIME": "HH:MM de 00:00 a 23:59 (ej.: 09:15, 17:30)",
+    "NIVEL_TRAFICO": "BAJO, MEDIO, ALTO",
+    "ESTADO_CLIMA": "DESPEJADO, LLUVIA, NIEBLA",
+    "NIVEL_PRIORIDAD": "BAJA, MEDIA, ALTA",
+}
 CATALOGO = [
-    {"token": n, "categoria": c, "regex": re.sub(r"\(\?![^)]*\)$", "", p)}
+    {"token": n, "categoria": c, "regex": re.sub(r"\(\?![^)]*\)$", "", p),
+     "admitidos": ADMITIDOS.get(n, re.sub(r"\(\?![^)]*\)$", "", p).replace("\\", ""))}
     for n, c, p in TOKEN_SPEC + _OTHER_TOKENS
 ]
+ADMITIDOS_POR_TOKEN = {t["token"]: t["admitidos"] for t in CATALOGO}
 # ER pura de cada token (sin el lookahead de delimitación); alimenta los autómatas de la etapa 2.
 ER_POR_TOKEN = {t["token"]: t["regex"] for t in CATALOGO}
 
@@ -67,6 +77,7 @@ def tokenize(texto):
             continue
         tokens.append({
             "lexema": lexema, "token": tipo, "categoria": CATEGORY[tipo], "er": ER_POR_TOKEN[tipo],
+            "admitidos": ADMITIDOS_POR_TOKEN[tipo],
             "linea": linea, "columna": col,
         })
     return tokens, errores
