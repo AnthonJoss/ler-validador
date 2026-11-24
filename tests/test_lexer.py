@@ -126,3 +126,32 @@ def test_pagina_muestra_gramatica_y_enunciado():
     from app import app
     html = app.test_client().get("/").get_data(as_text=True)
     assert "G = (V, Σ, P, S)" in html and "Enunciado del proyecto" in html and "::=" in html
+
+
+def test_digitos_individuales_en_ambos_automatas():
+    digitos = list("0123456789")
+    for token in ("IDENT", "NUM", "TIME"):
+        er = ER_POR_TOKEN[token]
+        assert "-" not in er
+        a = analizar_er(er)
+        for tipo in ("afnd", "afd"):
+            datos = a[tipo]
+            assert [c for c in datos["tabla"]["columnas"] if c in digitos] == digitos
+            assert all(d in datos["alfabeto"].split(", ") for d in digitos)
+            for d in digitos:
+                assert any(f", {d})" in t for t in datos["transiciones"])
+            assert "0, 1, 2, 3, 4, 5, 6, 7, 8, 9" in datos["svg"]
+        for _, simbolos, _ in a["nfa"]["trans"]:
+            if simbolos and simbolos.intersection(digitos):
+                assert len(simbolos) == 1
+        assert all(len(s) == 1 for s in a["dfa"]["atomos"] if s.intersection(digitos))
+
+
+def test_todos_los_digitos_y_limites_horarios():
+    for d in "0123456789":
+        assert _acepta(analizar_er(ER_POR_TOKEN["IDENT"])["dfa"], "P" + d * 4)
+        assert _acepta(analizar_er(ER_POR_TOKEN["NUM"])["dfa"], d + "." + d)
+    afd = analizar_er(ER_POR_TOKEN["TIME"])["dfa"]
+    for h in range(26):
+        for m in range(62):
+            assert _acepta(afd, f"{h:02}:{m:02}") == (h < 24 and m < 60)

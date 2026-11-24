@@ -76,18 +76,20 @@ def svg_automata(nombres, inicio, finales, aristas, uid):
     for i in sorted(prof, key=lambda i: (prof[i], i)):
         filas.setdefault(prof[i], []).append(i)
     alto_max = max(len(f) for f in filas.values())
-    pos = {}
-    for d, miembros in filas.items():
-        for k, i in enumerate(miembros):
-            pos[i] = (MARGEN_X + d * DX, MARGEN_Y + (alto_max - len(miembros)) * DY / 2 + k * DY)
-
     pares = {}
     for u, v, e in aristas:
         pares.setdefault((u, v), []).append("λ" if e == "ε" else e)
+    # Mantener espacio suficiente para las etiquetas con todos los dígitos.
+    etiquetas = {par: ", ".join(dict.fromkeys(es)) for par, es in pares.items()}
+    dx = max(DX, max((len(e) * 7.5 + 2 * R + 20 for e in etiquetas.values()), default=DX))
+    pos = {}
+    for d, miembros in filas.items():
+        for k, i in enumerate(miembros):
+            pos[i] = (MARGEN_X + d * dx, MARGEN_Y + (alto_max - len(miembros)) * DY / 2 + k * DY)
 
     cuerpo, xs, ys = [], [x for x, _ in pos.values()], [y for _, y in pos.values()]
     for (u, v), etqs in pares.items():
-        etq = ",".join(dict.fromkeys(etqs)).replace(", ", ",")
+        etq = etiquetas[(u, v)]
         x1, y1 = pos[u]
         x2, y2 = pos[v]
         if u == v:
@@ -97,6 +99,7 @@ def svg_automata(nombres, inicio, finales, aristas, uid):
                           % (a, C_LINEA, uid))
             cuerpo.append(_texto(x1, y1 - R - 34, etq))
             ys.append(y1 - R - 40)
+            xs.extend((x1 - len(etq) * 3.8, x1 + len(etq) * 3.8))
             continue
         L = hypot(x2 - x1, y2 - y1)
         nx, ny = (y2 - y1) / L, -(x2 - x1) / L          # normal a la izquierda de u→v
@@ -125,6 +128,7 @@ def svg_automata(nombres, inicio, finales, aristas, uid):
                       % (camino, C_LINEA, uid))
         cuerpo.append(_texto(lx, ly, etq))
         ys.append(ly)
+        xs.extend((lx - len(etq) * 3.8, lx + len(etq) * 3.8))
 
     estados = []
     for i, (x, y) in pos.items():

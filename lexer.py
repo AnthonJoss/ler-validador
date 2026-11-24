@@ -14,13 +14,13 @@ TOKEN_SPEC = [
     ("NIVEL_TRAFICO", "Literal Enumerado", r"BAJO|MEDIO|ALTO"),
     ("ESTADO_CLIMA", "Literal Enumerado", r"DESPEJADO|LLUVIA|NIEBLA"),
     ("NIVEL_PRIORIDAD", "Literal Enumerado", r"BAJA|MEDIA|ALTA"),
-    ("IDENT", "Identificador", r"P[0-9]{4}"),
+    ("IDENT", "Identificador", r"P[0123456789]{4}"),
 ]
 # Las palabras (letras/dígitos) deben coincidir completas: "IDX" no es KW_ID.
-_WORD_TOKENS = [(n, c, r"(?:%s)(?![A-Za-z0-9_])" % p) for n, c, p in TOKEN_SPEC]
+_WORD_TOKENS = [(n, c, r"(?:%s)(?![A-Za-z0123456789_])" % p) for n, c, p in TOKEN_SPEC]
 _OTHER_TOKENS = [
-    ("TIME", "Literal Horario", r"(?:[01][0-9]|2[0-3]):[0-5][0-9](?![0-9])"),
-    ("NUM", "Literal Numérico", r"[0-9]+(?:\.[0-9]+)?"),
+    ("TIME", "Literal Horario", r"(?:[01][0123456789]|2[0123]):[012345][0123456789](?![0123456789])"),
+    ("NUM", "Literal Numérico", r"[0123456789]+(?:\.[0123456789]+)?"),
     ("EQ", "Operador", r"="),
     ("LBRACE", "Delimitador", r"\{"),
     ("RBRACE", "Delimitador", r"\}"),
@@ -30,7 +30,7 @@ ALL_TOKENS = _WORD_TOKENS + _OTHER_TOKENS
 
 MASTER = re.compile(
     "|".join("(?P<%s>%s)" % (n, p) for n, _, p in ALL_TOKENS)
-    + r"|(?P<WS>\s+)|(?P<BADWORD>[A-Za-z_][A-Za-z0-9_]*)|(?P<BAD>.)",
+    + r"|(?P<WS>\s+)|(?P<BADWORD>[A-Za-z_][A-Za-z0123456789_]*)|(?P<BAD>.)",
     re.DOTALL,
 )
 CATEGORY = {n: c for n, c, _ in ALL_TOKENS}
@@ -69,8 +69,8 @@ def tokenize(texto):
         if tipo in ("BAD", "BADWORD"):
             if tipo == "BAD":
                 motivo = "Símbolo no permitido en el alfabeto de LER"
-            elif re.fullmatch(r"P[0-9]+", lexema):
-                motivo = "IDENT inválido: el formato exige P seguido de cuatro dígitos (P[0-9]{4})"
+            elif re.fullmatch(r"P[0123456789]+", lexema):
+                motivo = "IDENT inválido: el formato exige P seguido de cuatro dígitos (P[0123456789]{4})"
             else:
                 motivo = "Palabra no reconocida (no coincide con ninguna palabra reservada ni literal enumerado)"
             errores.append({"lexema": lexema, "linea": linea, "columna": col, "mensaje": motivo})

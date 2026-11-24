@@ -123,12 +123,12 @@ def parsear(er):
 
 # ------------------------------------------------------------ utilidades de símbolos
 def _misma_clase(a, b):
-    """Evita rangos que mezclan clases, como '0-:' (el ':' sigue al '9' en ASCII)."""
-    return any(f(chr(a)) and f(chr(b)) for f in (str.isdigit, str.isupper, str.islower))
+    """Solo las letras pueden abreviarse; los dígitos siempre se enumeran."""
+    return any(f(chr(a)) and f(chr(b)) for f in (str.isupper, str.islower))
 
 
 def fmt_conjunto(chars):
-    """{'0',...,'9',':'} -> '0-9, :'  (rangos de 3 o más consecutivos)."""
+    """Enumera cada dígito y conserva la abreviación de rangos de letras."""
     cs = sorted(ord(c) for c in chars)
     partes, i = [], 0
     while i < len(cs):
@@ -144,10 +144,10 @@ def fmt_conjunto(chars):
 
 
 def particion(conjuntos):
-    """Divide el alfabeto en clases de caracteres que se comportan igual en todo el autómata."""
+    """Cada dígito es un símbolo independiente; agrupa los demás por comportamiento."""
     grupos = {}
     for ch in sorted(set().union(*conjuntos)):
-        firma = tuple(ch in c for c in conjuntos)
+        firma = (ch if ch in "0123456789" else None, tuple(ch in c for c in conjuntos))
         grupos.setdefault(firma, set()).add(ch)
     return sorted((frozenset(g) for g in grupos.values()), key=min)
 
@@ -171,7 +171,12 @@ class _Thompson:
         tipo = nodo[0]
         if tipo == "chr":
             f = self.nuevo()
-            self.trans.append((s, nodo[1], f))
+            # Cada dígito tiene su propia transición, incluso si comparte destino.
+            otros = nodo[1] - frozenset("0123456789")
+            for digito in sorted(nodo[1] - otros):
+                self.trans.append((s, frozenset(digito), f))
+            if otros:
+                self.trans.append((s, otros, f))
             return f
         if tipo == "cat":  # el final de una parte es el inicio de la siguiente
             for parte in nodo[1]:
