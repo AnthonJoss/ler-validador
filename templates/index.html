@@ -8,12 +8,20 @@
 </head>
 <body>
 <header>
-  <p class="curso">Teoría de la Computación · 2026-02 · Etapas 1 y 2</p>
+  <p class="curso">Teoría de la Computación · 2026-02 · Etapas 1, 2 y 3</p>
   <h1>Sistema de Validación Léxico-Sintáctica de Eventos Logísticos</h1>
   <p class="sub">Lenguaje de Eventos de Reparto (LER) · Última milla en Lima Metropolitana</p>
   <p id="hola" class="hola">Cargando backend…</p>
 </header>
 <main>
+<section class="card" id="enunciado">
+  <h2>Enunciado del proyecto</h2>
+  <p><b>Implementación de una solución predictiva con análisis léxico-sintáctico para disminuir retrasos en entregas de última milla en Lima Metropolitana.</b></p>
+  <p class="small">En la logística de última milla los sistemas reciben registros de entregas heterogéneos que pueden llegar incompletos, mal estructurados o ambiguos antes de alimentar un modelo predictivo. Para filtrarlos se definió el <b>LER (Lenguaje de Eventos de Reparto)</b>, un lenguaje de dominio específico en el que cada cadena describe un único evento de reparto con siete campos en orden fijo: identificador, distancia, carga, tráfico, clima, hora y prioridad. Esta aplicación implementa la fase de análisis de un compilador para LER: análisis léxico (tokens y lexemas), expresiones regulares y autómatas (AFND → AFD), y análisis sintáctico con una gramática libre de contexto y su árbol, de modo que solo las cadenas válidas pasen al modelo de riesgo de retraso.</p>
+  <p class="small"><b>Alfabeto Σ:</b> letras mayúsculas A–Z, dígitos 0–9, punto decimal, dos puntos y los símbolos <code>{ } = ;</code>. La cadena debe iniciar con <code>ENTREGA</code>, contener los siete campos en el orden definido y terminar con <code>}</code>.</p>
+  <pre class="quint wrap">ENTREGA{ID=P1023;DIST=18.5;CARGA=42;TRAFICO=ALTO;CLIMA=LLUVIA;HORA=17:30;PRIORIDAD=ALTA}</pre>
+</section>
+
 <section class="card">
   <h2>1. Entrada de datos</h2>
   <textarea id="entrada" rows="5" spellcheck="false" placeholder="ENTREGA{ID=P1023;DIST=18.5;...}"></textarea>
@@ -28,6 +36,14 @@
     <button class="chip" data-caso="valido">Válido</button>
     <button class="chip" data-caso="lexico">Error léxico</button>
     <button class="chip" data-caso="sintactico">Error sintáctico</button>
+  </div>
+  <div class="row small">
+    <span>Ejemplos del informe:</span>
+    <button class="chip" data-caso="valido2">Válido 2</button>
+    <button class="chip" data-caso="ident">IDENT P23</button>
+    <button class="chip" data-caso="falta_semi">Falta «;»</button>
+    <button class="chip" data-caso="extremo">TRAFICO=EXTREMO</button>
+    <button class="chip" data-caso="orden">Orden alterado</button>
   </div>
 </section>
 
@@ -69,8 +85,33 @@
   </div>
   <div id="auto-salida"></div>
 </section>
+<section class="card" id="gramatica">
+  <h2>5. Gramática libre de contexto de LER <span class="badge">Etapa 3</span></h2>
+  <p class="small">Los terminales de la gramática son los tokens que entrega el analizador léxico; los no terminales describen la estructura del registro.</p>
+  <h4>Cuádrupla</h4>
+<pre class="quint">G = (V, Σ, P, S)
+V = { {{ g.V | join(", ") }} }
+Σ = { {{ g.Sigma | join(", ") }} }
+P = producciones 1 a {{ g.P | length }} (tabla)
+S = {{ g.S }}</pre>
+  <h4>Producciones</h4>
+  <div class="scroll"><table>
+    <thead><tr><th>#</th><th>Cabeza</th><th></th><th>Cuerpo</th></tr></thead>
+    <tbody>
+    {% for p in g.P %}<tr><td>P{{ p.num }}</td><td><code>{{ p.cabeza }}</code></td><td>::=</td><td><code>{{ p.cuerpo }}</code></td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <p class="small">Es una gramática LL(1): cada no terminal tiene una sola producción, así que un parser descendente recursivo decide sin retroceso. Como exige el orden fijo de los siete campos, la cadena con <code>PRIORIDAD</code> antes de <code>HORA</code> es léxicamente válida pero sintácticamente rechazada.</p>
+</section>
+
+<section class="card" id="etapa3">
+  <h2>6. Análisis sintáctico y árbol <span class="badge">Etapa 3</span></h2>
+  <p class="small">Valida la cadena de la entrada con la gramática (parser descendente recursivo). Si es válida muestra la derivación por la izquierda, el árbol sintáctico generado por código y las variables extraídas para el modelo; si no, indica el elemento esperado, la posición y el árbol parcial hasta el error.</p>
+  <div class="row"><button id="btn-validar" class="primary">Validar con la gramática</button></div>
+  <div id="sint-salida"><p class="small vacio">Pulsa «Analizar» o «Validar con la gramática».</p></div>
+</section>
 </main>
-<footer>Proyecto académico · Etapa 1: análisis léxico con Flask + <code>re</code> · Etapa 2: ER → AFND → AFD</footer>
+<footer>Proyecto académico · Etapa 1: análisis léxico con Flask + <code>re</code> · Etapa 2: ER → AFND → AFD · Etapa 3: gramática y árbol sintáctico</footer>
 <script>
 const EJEMPLOS = {{ ejemplos | tojson }};
 </script>

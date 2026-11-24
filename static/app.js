@@ -24,16 +24,18 @@ async function analizar() {
   });
 }
 
-$("btn-analizar").onclick = analizar;
-$("btn-ejemplo").onclick = () => { $("entrada").value = EJEMPLOS.valido; analizar(); };
+const analizarTodo = () => { analizar(); validarSintaxis(); };
+$("btn-analizar").onclick = analizarTodo;
+$("btn-ejemplo").onclick = () => { $("entrada").value = EJEMPLOS.valido; analizarTodo(); };
 $("btn-limpiar").onclick = () => {
   $("entrada").value = ""; $("alertas").innerHTML = ""; $("resumen").textContent = "";
   $("tabla").querySelector("tbody").innerHTML = '<tr><td colspan="6" class="vacio">Esperando entrada…</td></tr>';
+  $("sint-salida").innerHTML = '<p class="small vacio">Pulsa «Analizar» o «Validar con la gramática».</p>';
 };
-document.querySelectorAll(".chip").forEach(b => b.onclick = () => { $("entrada").value = EJEMPLOS[b.dataset.caso]; analizar(); });
+document.querySelectorAll(".chip").forEach(b => b.onclick = () => { $("entrada").value = EJEMPLOS[b.dataset.caso]; analizarTodo(); });
 $("archivo").onchange = async (e) => {
   const f = e.target.files[0]; if (!f) return;
-  $("entrada").value = await f.text(); e.target.value = ""; analizar();
+  $("entrada").value = await f.text(); e.target.value = ""; analizarTodo();
 };
 
 // ---------------------------------------------------------------- Etapa 2
@@ -92,3 +94,48 @@ async function generarAutomata() {
 $("btn-auto").onclick = generarAutomata;
 $("sel-token").onchange = generarAutomata;
 generarAutomata();
+
+// ---------------------------------------------------------------- Etapa 3
+function arbolTexto(n, pref = "", ultimo = true, raiz = true) {
+  const rama = raiz ? "" : pref + (ultimo ? "└─ " : "├─ ");
+  const et = n.lexema !== undefined ? `${n.nodo}  «${n.lexema}»` : `<${n.nodo}>`;
+  let out = rama + et + "\n";
+  const hijos = n.hijos || [];
+  hijos.forEach((h, i) => { out += arbolTexto(h, raiz ? "" : pref + (ultimo ? "   " : "│  "), i === hijos.length - 1, false); });
+  return out;
+}
+
+async function validarSintaxis() {
+  const texto = $("entrada").value;
+  const res = await fetch("/api/validar", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({texto})});
+  const d = await res.json();
+  if (!res.ok) { $("sint-salida").innerHTML = `<div class="alerta">${esc(d.error)}</div>`; return; }
+  let h = "";
+  d.errores_lexicos.forEach(e => { h += `<div class="alerta">Error léxico en ${e.linea}:${e.columna} — <code>${esc(e.lexema)}</code>: ${esc(e.mensaje)}</div>`; });
+  if (d.error_sintactico) {
+    const e = d.error_sintactico;
+    h += `<div class="alerta">Error sintáctico en ${e.linea}:${e.columna} — ${esc(e.mensaje)}.</div>`;
+  }
+  if (d.valido) h += '<div class="alerta ok">Cadena válida: pertenece al lenguaje L(G) definido por la gramática de LER.</div>';
+  else if (!d.error_sintactico) h += '<div class="alerta">La estructura cumple la gramática, pero la cadena se rechaza por los errores léxicos.</div>';
+  if (d.derivacion) {
+    const filas = d.derivacion.map((p, i) => {
+      const reg = p.produccion === null ? "inicio (S)" : p.produccion === "lexemas" ? "tokens → lexemas" : `P${p.produccion}`;
+      return `<tr><td>${i === 0 ? "" : "⇒"}</td><td><code>${esc(p.forma)}</code></td><td>${reg}</td></tr>`;
+    }).join("");
+    h += `<h3>Derivación por la izquierda</h3><div class="scroll"><table><thead><tr><th></th><th>Forma sentencial</th><th>Regla</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+  }
+  const arbol = d.arbol || d.arbol_parcial;
+  if (d.svg) {
+    h += `<h3>${d.arbol ? "Árbol sintáctico" : "Árbol sintáctico parcial (hasta el error)"}</h3>
+      <div class="grafo arbol">${d.svg}</div>
+      <p class="small">Óvalos violetas: no terminales · rectángulos verdes: terminales (tokens) · debajo, el lexema reconocido.</p>
+      <details><summary>Ver árbol en texto</summary><pre class="quint">${esc(arbolTexto(arbol))}</pre></details>`;
+  }
+  if (d.variables) {
+    const filas = Object.entries(d.variables).map(([k, v]) => `<tr><td>${esc(k)}</td><td><code>${esc(String(v))}</code></td><td>${typeof v === "number" ? "numérica" : "categórica"}</td></tr>`).join("");
+    h += `<h3>Variables extraídas (entrada del modelo predictivo)</h3><div class="scroll"><table><thead><tr><th>Variable</th><th>Valor</th><th>Tipo</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+  }
+  $("sint-salida").innerHTML = h;
+}
+$("btn-validar").onclick = validarSintaxis;

@@ -59,3 +59,70 @@ def test_endpoint_automata():
     r = c.get("/api/automata/TIME?lexema=17:30").get_json()
     assert r["traza"]["acepta"] and r["afd"]["finales"]
     assert c.get("/api/automata/NOPE").status_code == 404
+
+
+# ---- Etapa 3: análisis sintáctico y árbol
+from parser import validar
+
+
+def test_parser_valido_y_variables():
+    r = validar(EJEMPLOS["valido"])
+    assert r["valido"] and r["arbol"]["nodo"] == "registro"
+    assert [h["nodo"] for h in r["arbol"]["hijos"] if h["nodo"] in ("id", "hora", "prioridad")] == ["id", "hora", "prioridad"]
+    assert r["variables"] == {"id": "P1023", "distancia": 18.5, "carga": 42.0, "trafico": "ALTO",
+                              "clima": "LLUVIA", "hora": "17:30", "prioridad": "ALTA"}
+
+
+def test_parser_falta_punto_y_coma():
+    e = validar("ENTREGA{ID=P1023 DIST=18.5;CARGA=42;TRAFICO=ALTO;CLIMA=LLUVIA;HORA=17:30;PRIORIDAD=ALTA}")["error_sintactico"]
+    assert e["esperado"] == ";" and e["encontrado"] == "DIST" and e["columna"] == 18
+
+
+def test_parser_orden_distinto():
+    r = validar("ENTREGA{ID=P1023;DIST=18.5;CARGA=42;TRAFICO=ALTO;CLIMA=LLUVIA;PRIORIDAD=ALTA;HORA=17:30}")
+    assert not r["valido"] and r["error_sintactico"]["esperado"] == "HORA"
+
+
+def test_parser_incompleto_y_extra():
+    assert validar(EJEMPLOS["sintactico"])["error_sintactico"]["esperado"] == ";"
+    assert validar("ENTREGA{ID=P1023")["error_sintactico"]["encontrado"] == "fin de la entrada"
+    ok = "ENTREGA{ID=P1023;DIST=1;CARGA=2;TRAFICO=BAJO;CLIMA=NIEBLA;HORA=09:15;PRIORIDAD=MEDIA}"
+    assert validar(ok)["valido"] and validar(ok + "}")["error_sintactico"]["esperado"] == "fin de la cadena"
+
+
+def test_parser_valor_fuera_de_dominio():
+    r = validar("ENTREGA{ID=P1023;DIST=18.5;CARGA=42;TRAFICO=EXTREMO;CLIMA=LLUVIA;HORA=17:30;PRIORIDAD=ALTA}")
+    assert not r["valido"] and r["errores_lexicos"][0]["lexema"] == "EXTREMO"
+
+
+def test_gramatica_cuadrupla():
+    from parser import gramatica
+    g = gramatica()
+    assert g["S"] == "<registro>" and len(g["V"]) == 8 and len(g["P"]) == 8
+    assert g["P"][0]["cuerpo"].startswith("ENTREGA { <id> ;") and "NIVEL_PRIORIDAD" in g["Sigma"]
+
+
+def test_derivacion_y_svg_del_arbol():
+    r = validar(EJEMPLOS["valido"])
+    d = r["derivacion"]
+    assert d[0]["forma"] == "<registro>" and [p["produccion"] for p in d[1:-1]] == list(range(1, 9))
+    assert "<" not in d[-2]["forma"] and d[-1]["forma"] == EJEMPLOS["valido"]
+    assert r["svg"].startswith("<svg") and "P1023" in r["svg"] and "&lt;registro&gt;" in r["svg"]
+
+
+def test_ejemplos_invalidos_del_informe():
+    assert validar(EJEMPLOS["valido2"])["valido"]
+    r = validar(EJEMPLOS["ident"])
+    assert not r["valido"] and r["errores_lexicos"][0]["lexema"] == "P23"
+    e = validar(EJEMPLOS["falta_semi"])["error_sintactico"]
+    assert e["esperado"] == ";" and e["linea"] == 2
+    assert validar(EJEMPLOS["extremo"])["errores_lexicos"][0]["lexema"] == "EXTREMO"
+    r = validar(EJEMPLOS["orden"])
+    assert not r["errores_lexicos"] and r["error_sintactico"]["esperado"] == "HORA"
+    assert r["arbol"] is None and r["arbol_parcial"]["hijos"] and r["svg"]
+
+
+def test_pagina_muestra_gramatica_y_enunciado():
+    from app import app
+    html = app.test_client().get("/").get_data(as_text=True)
+    assert "G = (V, Σ, P, S)" in html and "Enunciado del proyecto" in html and "::=" in html

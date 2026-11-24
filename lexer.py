@@ -57,11 +57,12 @@ def tokenize(texto):
                 inicio_linea = m.start() + lexema.rfind("\n") + 1
             continue
         if tipo in ("BAD", "BADWORD"):
-            motivo = (
-                "Palabra no reconocida (el lenguaje solo admite MAYÚSCULAS definidas)"
-                if tipo == "BADWORD"
-                else "Símbolo no permitido en el alfabeto de LER"
-            )
+            if tipo == "BAD":
+                motivo = "Símbolo no permitido en el alfabeto de LER"
+            elif re.fullmatch(r"P[0-9]+", lexema):
+                motivo = "IDENT inválido: el formato exige P seguido de cuatro dígitos (P[0-9]{4})"
+            else:
+                motivo = "Palabra no reconocida (no coincide con ninguna palabra reservada ni literal enumerado)"
             errores.append({"lexema": lexema, "linea": linea, "columna": col, "mensaje": motivo})
             continue
         tokens.append({

@@ -7,7 +7,7 @@ h1{margin:4px 0;font-size:clamp(22px,4vw,32px)}
 .sub{color:var(--mut);margin:0}
 .hola{display:inline-block;margin:12px 0 0;padding:2px 10px;border:1px solid var(--line);border-radius:99px;color:var(--ok);font-size:13px}
 main{max-width:960px;margin:auto;padding:8px 16px 32px;display:grid;gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+.card{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
 h2{margin:0 0 12px;font-size:18px}
 textarea{width:100%;background:#0c0f1d;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:12px;font:14px ui-monospace,monospace;resize:vertical}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
@@ -31,7 +31,9 @@ select,.mini{font:inherit;background:#0c0f1d;color:var(--fg);border:1px solid va
 h3{margin:20px 0 4px;font-size:16px;color:var(--acc)}
 h4{margin:14px 0 6px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
 .quint{background:#0c0f1d;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0;overflow-x:auto;font:13px/1.6 ui-monospace,monospace;color:var(--fg)}
-.grafo{overflow-x:auto;background:#0c0f1d;border:1px solid var(--line);border-radius:8px;padding:8px}
+.grafo{overflow-x:auto;background:#212121;line-height:0}
 .grafo svg{display:block;max-width:none}
 tr.clic{cursor:pointer}tr.clic:hover{background:#ffffff0a}
 details summary{cursor:pointer;color:var(--mut);margin-bottom:6px}
+.grafo.arbol{background:#0c0f1d;border:1px solid var(--line);border-radius:8px}
+.wrap{white-space:pre-wrap;word-break:break-all}

@@ -153,7 +153,7 @@ def particion(conjuntos):
 
 
 def nombre_afd(i):
-    return chr(65 + i % 26) + (str(i // 26) if i >= 26 else "")
+    return "q%d" % i
 
 
 # --------------------------------------------------------------- AFND (Thompson)
